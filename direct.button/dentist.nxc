@@ -1,0 +1,177 @@
+//-*- coding: utf-8 -*-
+/** Titre
+	@project TP03 : Pilotage distant d'un robot par liaison bluetooth- Contrôle.com process
+	@file dentist.nxc
+	@brief programme maître
+	@author Copyright 2010 Antoine GRÉA <grea09@gmail.com>
+	
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
+	
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+	
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+	MA 02110-1301, USA.
+*/
+
+// In the latest versions of nbc this line is implicit
+//  #include "NXCDefs.h" 
+
+#include "libdevnxc.h"
+
+// Variable globale car par d'IPC correct en NXC
+
+
+task music();
+task control();
+task write();
+
+
+task main()
+{
+	if (BluetoothStatus(SLAVE) == NO_ERR)
+	{
+		SetSensor(SENSOR_TRIGER, SENSOR_TOUCH);
+		SetSensor(SENSOR_TRIGER2, SENSOR_TOUCH);
+		NumOut(LCD_ROW*0, LCD_LINE5,RemoteStartProgram(SLAVE,"patient.rxe"));
+		NumOut(LCD_ROW*0, LCD_LINE6,RemoteStopProgram(SLAVE));
+		Wait(REAL_TIME / 100);
+		start music;
+		start control;
+		start write;
+	}
+	else
+	{
+		NumOut(LCD_ROW*0, LCD_LINE1,BluetoothStatus(SLAVE));
+		TextOut(LCD_ROW*0, LCD_LINE2, "Pas de connexion !");
+		Wait(REAL_TIME * 3);
+	}
+}
+
+task music()
+{
+	while(true)
+	{
+		
+		until(Sensor(SENSOR_TRIGER));
+		NumOut(LCD_ROW*0, LCD_LINE7,RemotePlayTone(SLAVE, 600, 500));
+		Wait(REAL_TIME);
+	}
+	
+}
+
+task control()
+{
+	bool center = true;
+	bool left = true;
+	bool right = true;
+	bool fire = true;
+	
+	
+	while(true)
+	{
+		//~ until
+		//~ (
+			//~ ButtonPressed(BTNCENTER, true) || 
+			//~ ButtonPressed(BTNLEFT, true) || 
+			//~ ButtonPressed(BTNRIGHT, true) || 
+			//~ Sensor(SENSOR_TRIGER)
+		//~ );
+		
+		if (Sensor(SENSOR_TRIGER2))
+		{
+			RemoteSetOutputState(SLAVE, ENGINE_ANGLE, -FORWARD_POWER, OUT_MODE_MOTORON,OUT_REGMODE_IDLE, 0, OUT_RUNSTATE_RUNNING, 0)
+		}
+		else
+		{
+			RemoteSetOutputState(SLAVE, ENGINE_ANGLE, 0, OUT_MODE_MOTORON,OUT_REGMODE_IDLE, 0, OUT_RUNSTATE_RUNNING, 0)
+		}
+		
+		
+		int left_power = 0;
+		
+		if(ButtonPressed(BTNCENTER, true) && center)
+		{
+			left_power = FORWARD_POWER;
+		}
+		else if (ButtonPressed(BTNRIGHT, true) && right)
+		{
+			left_power = FORWARD_POWER;
+		}
+		else if (ButtonPressed(BTNLEFT, true) && left)
+		{
+			left_power = -FORWARD_POWER;
+		}
+		else
+		{
+			left_power = 0;
+		}
+		
+		if (Sensor(SENSOR_TRIGER))
+		{
+			left_power = BACKWARD_POWER;
+		}
+		
+		int right_power = 0;
+		
+		if(ButtonPressed(BTNCENTER, true) && center)
+		{
+			right_power = FORWARD_POWER;
+		}
+		else if (ButtonPressed(BTNLEFT, true) && left)
+		{
+			right_power = FORWARD_POWER;
+		}
+		else if (ButtonPressed(BTNRIGHT, true) && right)
+		{
+			right_power = -FORWARD_POWER;
+		}
+		else
+		{
+			right_power = 0;
+		}
+		
+		if (Sensor(SENSOR_TRIGER))
+		{
+			right_power = BACKWARD_POWER;
+		}
+		
+		
+		NumOut(LCD_ROW*0, LCD_LINE7,RemoteSetOutputState(SLAVE, ENGINE_LEFT, left_power, OUT_MODE_MOTORON,OUT_REGMODE_IDLE, 0, OUT_RUNSTATE_RUNNING, 0));
+		Wait(REAL_TIME / 10);
+		
+		NumOut(LCD_ROW*0, LCD_LINE7,RemoteSetOutputState(SLAVE, ENGINE_RIGHT, right_power,OUT_MODE_MOTORON,OUT_REGMODE_IDLE, 0, OUT_RUNSTATE_RUNNING, 0));
+		Wait(REAL_TIME / 10);
+		
+		NumOut(LCD_ROW*0, LCD_LINE8,left_power);
+		NumOut(LCD_ROW*3, LCD_LINE8,right_power);
+		NumOut(LCD_ROW*0, LCD_LINE3,Sensor(SENSOR_TRIGER));
+		
+		//~ center &= ButtonPressed(BTNCENTER, true);
+		//~ left &= ButtonPressed(BTNLEFT, true);
+		//~ right &= ButtonPressed(BTNRIGHT, true);
+		//~ fire &= Sensor(SENSOR_TRIGER);
+		
+		
+	}
+	
+}
+
+task write()
+{
+	TextOut(LCD_ROW*0, LCD_LINE4, LCD_LINE);
+	while(1)
+	{
+		TextOut(LCD_ROW*0, LCD_LINE3, "Touch :       ");
+		TextOut(LCD_ROW*0, LCD_LINE3, LCD_CLEAN);
+		NumOut(LCD_ROW*0, LCD_LINE7, Sensor(SENSOR_TRIGER) );
+		Wait(REAL_TIME /10 );
+	}
+}
